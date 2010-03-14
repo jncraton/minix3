@@ -117,6 +117,7 @@ FORWARD _PROTOTYPE( void in_transfer, (tty_t *tp)			);
 FORWARD _PROTOTYPE( int tty_echo, (tty_t *tp, int ch)			);
 FORWARD _PROTOTYPE( void rawecho, (tty_t *tp, int ch)			);
 FORWARD _PROTOTYPE( int back_over, (tty_t *tp)				);
+FORWARD _PROTOTYPE( int back_over_word, (tty_t *tp)				);
 FORWARD _PROTOTYPE( void reprint, (tty_t *tp)				);
 FORWARD _PROTOTYPE( void dev_ioctl, (tty_t *tp)				);
 FORWARD _PROTOTYPE( void setattr, (tty_t *tp)				);
@@ -129,7 +130,7 @@ PRIVATE struct termios termios_defaults = {
   {
 	TEOF_DEF, TEOL_DEF, TERASE_DEF, TINTR_DEF, TKILL_DEF, TMIN_DEF,
 	TQUIT_DEF, TTIME_DEF, TSUSP_DEF, TSTART_DEF, TSTOP_DEF,
-	TREPRINT_DEF, TLNEXT_DEF, TDISCARD_DEF,
+	TREPRINT_DEF, TLNEXT_DEF, TDISCARD_DEF, TERASEWORD_DEF,
   },
 };
 PRIVATE struct winsize winsize_defaults;	/* = all zeroes */
@@ -1068,6 +1069,15 @@ int count;			/* number of input characters */
 			continue;
 		}
 
+        /* Erase processing (rub out of last word). */
+        if (ch == tp->tty_termios.c_cc[VERASEWORD]) {
+            (void) back_over_word(tp);
+            if (!(tp->tty_termios.c_lflag & ECHOE)) {
+                (void) tty_echo(tp, ch);
+            }
+            continue;
+        }
+
 		/* Kill processing (remove current line). */
 		if (ch == tp->tty_termios.c_cc[VKILL]) {
 			while (back_over(tp)) {}
@@ -1259,6 +1269,43 @@ register tty_t *tp;
 	}
   }
   return(1);				/* one character erased */
+}
+
+/*===========================================================================*
+ *				back_over_word				     *
+ *===========================================================================*/
+PRIVATE int back_over_word(tp)
+register tty_t *tp;
+{
+/* erase characters until whitespace or start of string */
+  u16_t *head;
+  u16_t last;
+  u8_t last_char;
+  int len;
+  int erase_more = 1;
+
+  while(erase_more == 1) {
+  
+      if (tp->tty_incount == 0) return(0);    /* queue empty */
+      head = tp->tty_inhead;
+      if (head == tp->tty_inbuf) head = bufend(tp->tty_inbuf);
+      
+      /* if the latest character is a-z or A-Z or 0-9 */
+      last = *--head;
+      last_char = (last & 0x00FF);
+      if ((last_char >= '0' && last_char <= '9') ||
+          (last_char >= 'a' && last_char <= 'z') ||
+          (last_char >= 'A' && last_char <= 'Z')) {
+          (void) back_over(tp);
+      } else if (last_char == ' ') {
+          (void) back_over(tp);
+          erase_more = 0;
+      } else {
+          erase_more = 0;
+      }
+  }
+      
+return(1);                /* one word erased */
 }
 
 /*===========================================================================*

@@ -73,6 +73,7 @@ struct termios {
 #define VSUSP                8	/* cc_c[VSUSP] = SUSP (^Z, ignored) */
 #define VSTART               9	/* cc_c[VSTART] = START char (^S) */
 #define VSTOP               10	/* cc_c[VSTOP] = STOP char (^Q) */
+#define VERASEWORD          14	/* cc_c[VERASEWORD] = ERASEWORD char (^W) */
 
 #define _POSIX_VDISABLE	  (cc_t)0xFF	/* You can't even generate this 
 					 * character with 'normal' keyboards.
@@ -187,6 +188,7 @@ _PROTOTYPE( int tcsetattr, \
 #define	TREPRINT_DEF	'\22'	/* ^R */
 #define	TLNEXT_DEF	'\26'	/* ^V */
 #define	TDISCARD_DEF	'\17'	/* ^O */
+#define	TERASEWORD_DEF	'\27'	/* ^W */
 
 /* Window size. This information is stored in the TTY driver but not used.
  * This can be used for screen based applications in a window environment. 
